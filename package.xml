@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <name>tf40</name>
+  <version>0.0.1</version>
+  <description>TF40</description>
+  <license>BSD</license>
+  <author email="kajuha@gmail.com">Jeong-Hwan Kwak</author>
+  <maintainer email="kajuha@gmail.com">Jeong-Hwan Kwak</maintainer>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>tf</run_depend>
+</package>

@@ -1,0 +1,6 @@
+#ifdef _RCPL_CRC16_
+#define _RCPL_CRC16_
+
+unsigned short RCPL_CRC16(unsigned char data[], unsigned short length);
+
+#endif

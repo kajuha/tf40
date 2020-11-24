@@ -1,0 +1,7 @@
+<launch>
+  <node pkg="tf40" type="tf40" name="tf40" output="screen">
+    <param name="port" value="/dev/ttyUSB0" />
+    <param name="baud_rate" value="38400" />
+  </node>
+  <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find tf40)/rviz_cfg/range_test.rviz" /> -->
+</launch>
