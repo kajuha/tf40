@@ -1,7 +1,19 @@
 <launch>
-  <node pkg="tf40" type="tf40" name="tf40" output="screen">
-    <param name="port" value="/dev/ttyUSB0" />
+  <node pkg="tf40" type="tf40" name="tf40_rf" output="screen">
+    <param name="serial_port" value="/dev/recipe.driver.tf40.rf" />
     <param name="baud_rate" value="38400" />
   </node>
+  <node pkg="tf40" type="tf40" name="tf40_rr" output="screen">
+    <param name="serial_port" value="/dev/recipe.driver.tf40.rr" />
+    <param name="baud_rate" value="38400" />
+  </node>
+  <!-- <node ns="tf40_rf" pkg="tf40" type="tf40" name="tf40" output="screen">
+    <param name="serial_port" value="/dev/recipe.driver.tf40.rf" />
+    <param name="baud_rate" value="38400" />
+  </node>
+  <node ns="tf40_rr" pkg="tf40" type="tf40" name="tf40" output="screen">
+    <param name="serial_port" value="/dev/recipe.driver.tf40.rr" />
+    <param name="baud_rate" value="38400" />
+  </node> -->
   <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find tf40)/rviz_cfg/range_test.rviz" /> -->
 </launch>

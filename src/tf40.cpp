@@ -45,14 +45,14 @@ class TF40ForROS
 {
 private:
 	ros::NodeHandle nh_;
-	ros::NodeHandle nh_priv_;
 
 	ros::Publisher sensor_range;
 
 	pthread_mutex_t lock_;
 
+	std::string serial_port_;
+
 	//Define constants
-	const char* COMM_PORT = "/dev/ttyUSB0";
 	const static int TX_SIZE = sizeof(TF40TX);
 	const static int RX_SIZE = sizeof(TF40RX);
 
@@ -65,12 +65,14 @@ private:
 
 
 public:
-	TF40ForROS(std::string port = "/dev/ttyUSB0", int baud_rate = 38400)
-		: nh_priv_("~")
+	TF40ForROS(std::string serial_port, int baud_rate)
+		: nh_("~")
 	{
 		// dependent on user device
-		nh_priv_.setParam("port", port);
-		nh_priv_.setParam("baud_rate", baud_rate);
+		nh_.setParam("serial_port", serial_port);
+		nh_.setParam("baud_rate", baud_rate);
+
+		serial_port_ = serial_port;
 		
 		// publisher for streaming
 		sensor_range = nh_.advertise<sensor_msgs::Range>("sensor_range/data", 1);
@@ -81,6 +83,8 @@ public:
 
 	bool initialize()
 	{
+		const char* COMM_PORT = serial_port_.c_str();
+		
 		if(-1 == (fd = open(COMM_PORT, O_RDWR)))
 		{
 			cout << "Error opening port \n";
@@ -254,13 +258,13 @@ int main(int argc, char* argv[])
 {
   ros::init(argc, argv, "tf40");
 
-  std::string port = std::string("/dev/ttyUSB0");
-  int baud_rate    = 38400;
+  std::string serial_port;
+  int baud_rate;
 
-  ros::param::get("~port", port);
+  ros::param::get("~serial_port", serial_port);
   ros::param::get("~baud_rate", baud_rate);
 
-  TF40ForROS sensor(port, baud_rate);
+  TF40ForROS sensor(serial_port, baud_rate);
 
   if(sensor.initialize() == false)
   {
