@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include <iostream>
+#include <queue>
 
 using namespace std;
 
@@ -22,13 +23,22 @@ typedef struct _TF40TX {
 	unsigned short crc;
 } TF40TX;
 
+#define RX_ID_IDX 0
+#define RX_FUNC_IDX 1
+#define RX_LEN_IDX 2
+#define RX_VAL_IDX 3
+#define RX_CRC_IDX 7
+
 #define RX_ID_SIZE 1
-#define RX_ID_VAL 0x01
 #define RX_FUNC_SIZE 1
-#define RX_FUNC_VAL 0x03
 #define RX_LEN_SIZE 1
-#define RX_LEN_VAL 0x04
+#define RX_VAL_SIZE 4
 #define RX_CRC_SIZE 2
+
+#define RX_ID_VAL 0x01
+#define RX_FUNC_VAL 0x03
+#define RX_LEN_VAL 0x04
+
 #pragma pack(1)
 typedef struct _TF40RX {
 	unsigned char id;
@@ -38,6 +48,12 @@ typedef struct _TF40RX {
 	unsigned short register2;
 	unsigned short crc;
 } TF40RX;
+
+std::string node_name;
+
+//Define constants
+const static int TX_SIZE = sizeof(TF40TX);
+const static int RX_SIZE = sizeof(TF40RX);
 
 unsigned short CRC16(unsigned char data[], unsigned short length);
 
@@ -51,15 +67,16 @@ private:
 	pthread_mutex_t lock_;
 
 	std::string serial_port_;
+	// kajuha 20210302
+	int baud_rate_;
+	queue<unsigned char> que;
 
-	//Define constants
-	const static int TX_SIZE = sizeof(TF40TX);
-	const static int RX_SIZE = sizeof(TF40RX);
+	std::string frame_id_;
 
 	//Define global variables
 	int fd;
 	unsigned char tx_packet[TX_SIZE];
-	unsigned char rx_packet[RX_SIZE];
+	unsigned char rx_packet[BUFSIZ];
 	unsigned char tmp_packet[RX_SIZE];
 	int count = 0;
 
@@ -72,10 +89,15 @@ public:
 		nh_.setParam("serial_port", serial_port);
 		nh_.setParam("baud_rate", baud_rate);
 
+  		ros::param::get("~frame_id", frame_id_);
+
 		serial_port_ = serial_port;
+		// kajuha 20210302
+		baud_rate_ = baud_rate;
 		
 		// publisher for streaming
-		sensor_range = nh_.advertise<sensor_msgs::Range>("sensor_range/data", 1);
+		// sensor_range = nh_.advertise<sensor_msgs::Range>("sensor_range/data", 1);
+		sensor_range = nh_.advertise<sensor_msgs::Range>(frame_id_, 1000, true);
 	}
 
 	~TF40ForROS()
@@ -87,6 +109,7 @@ public:
 		
 		if(-1 == (fd = open(COMM_PORT, O_RDWR)))
 		{
+			cout << node_name << endl;
 			cout << "Error opening port \n";
 			cout << "Set port parameters using the following Linux command:\n stty -F /dev/ttyUSB0 38400 raw\n";
 			cout << "You may need to have ROOT access";
@@ -95,8 +118,50 @@ public:
 
 		struct termios newtio;
 		memset(&newtio, 0, sizeof(newtio));
-
+		// kajuha 20210302
+		#if 1
+		switch(baud_rate_)
+		{
+			case 921600:
+				newtio.c_cflag = B921600;
+				break;
+			case 576000:
+				newtio.c_cflag = B576000;
+				break;
+			case 500000:
+				newtio.c_cflag = B500000;
+				break;
+			case 460800:
+				newtio.c_cflag = B460800;
+				break;
+			case 230400:
+				newtio.c_cflag = B230400;
+				break;
+			case 115200:
+				newtio.c_cflag = B115200;
+				break;
+			case 57600:
+				newtio.c_cflag = B57600;
+				break;
+			case 38400:
+				newtio.c_cflag = B38400;
+				break;
+			case 19200:
+				newtio.c_cflag = B19200;
+				break;
+			case 9600:
+				newtio.c_cflag = B9600;
+				break;
+			case 4800:
+				newtio.c_cflag = B4800;
+				break;
+			default:
+				ROS_ERROR("%s : Unsupported baud rate!", node_name.c_str());
+				exit(0);
+		}
+		#else
 		newtio.c_cflag = B38400;
+		#endif
 		newtio.c_cflag |= CS8;
 		newtio.c_cflag |= CLOCAL;
 		newtio.c_cflag |= CREAD;
@@ -104,12 +169,17 @@ public:
 		newtio.c_oflag = 0;
 		newtio.c_lflag = 0;
 		newtio.c_cc[VTIME] = 0; 
+		// kajuha 20210302, receive FSM abnormal, require modified code
+		#if 0
 		newtio.c_cc[VMIN] = 1; 
+		#else
+		newtio.c_cc[VMIN] = 0;
+		#endif
 
-		tcflush(fd, TCIFLUSH);
+		tcflush(fd, TCIOFLUSH);
 		tcsetattr(fd, TCSANOW, &newtio);
 
-		cout << "TF40 communication port is ready\n";
+		cout << node_name << " : TF40 communication port is ready\n";
 
 		lock_ = PTHREAD_MUTEX_INITIALIZER;
 
@@ -119,7 +189,7 @@ public:
 	void closeSensor()
 	{
 		close(fd);
-		cout << "Closing TF40 Sensor" << endl;
+		cout << node_name << " : Closing TF40 Sensor" << endl;
 	}
 
 	bool requestStreamData()
@@ -131,7 +201,7 @@ public:
 		tf40tx.quantity = 0x0200;
 		tf40tx.crc = 0xCB95;
 
-		write(fd, (char*)&tf40tx, RX_SIZE);
+		write(fd, (char*)&tf40tx, TX_SIZE);
 	}
 
 	bool requestData()
@@ -143,7 +213,7 @@ public:
 		tf40tx.quantity = 0x0200;
 		tf40tx.crc = 0x08F4;
 
-		write(fd, (char*)&tf40tx, RX_SIZE);
+		write(fd, (char*)&tf40tx, TX_SIZE);
 	}
 
 	bool stopData()
@@ -155,11 +225,32 @@ public:
 		tf40tx.quantity = 0x0200;
 		tf40tx.crc = 0x09E4;
 
-		write(fd, (char*)&tf40tx, RX_SIZE);
+		write(fd, (char*)&tf40tx, TX_SIZE);
+	}
+
+	bool changeBaudrate115200()
+	{
+		unsigned char baud_rate_packet[] = {0x01, 0x10, 0x00, 0x00, 0x00, 0x02, 0x04, 0x00, 0x01, 0xC2, 0x00, 0xF3, 0x0F};
+
+		write(fd, baud_rate_packet, sizeof(baud_rate_packet));
 	}
 
 	bool receiveData()
 	{
+		// kajuha 20210302
+		#if 1
+		int rx_size;
+
+		memset(rx_packet, '\0', sizeof(rx_packet));
+
+		rx_size = read(fd, rx_packet, BUFSIZ);
+
+		for (int i=0; i<rx_size; i++) {
+			que.push(rx_packet[i]);
+		}
+
+		return true;
+		#else
 		int rx_size;
 		short header;
 		short check_sum;
@@ -205,19 +296,138 @@ public:
 		// pthread_mutex_unlock(&lock_);
 
 		return true;
+		#endif
+	}
+
+	// kajuha 20210302
+	enum STATE {ADDRESS, FUNCTION, COUNT, VALUE, CRC, OK};
+	bool parseData() {
+		static int state = ADDRESS;
+		static unsigned char packet[sizeof(TF40RX)] = {'\0', };
+		int rx_size;
+		short header;
+		short check_sum;
+
+		switch (state) {
+			case ADDRESS:
+				// size check
+				if (que.size() >= RX_ID_SIZE) {
+					// valid check
+					if (que.front() == RX_ID_VAL) {
+						packet[RX_ID_IDX] = que.front();
+
+						state = FUNCTION;
+					} else {
+						printf("%s : ID not Match \n", node_name.c_str());
+						state = ADDRESS;
+					}
+					que.pop();
+				}
+				break;
+			case FUNCTION:
+				// size check
+				if (que.size() >= RX_FUNC_SIZE) {
+					// valid check
+					if (que.front() == RX_FUNC_VAL) {
+						packet[RX_FUNC_IDX] = que.front();
+
+						state = COUNT;
+					} else {
+						printf("%s : FUNCTION not Match : 0x%02x \n", node_name.c_str(), que.front());
+						state = ADDRESS;
+					}
+					que.pop();
+				}
+				break;
+			case COUNT:
+				// size check
+				if (que.size() >= RX_LEN_SIZE) {
+					// valid check
+					if (que.front() == RX_LEN_VAL) {
+						packet[RX_LEN_IDX] = que.front();
+
+						state = VALUE;
+					} else {
+						printf("%s : LENGTH not Match \n", node_name.c_str());
+						state = ADDRESS;
+					}
+					que.pop();
+				}
+				break;
+			case VALUE:
+				// size check
+				if (que.size() >= RX_VAL_SIZE) {
+					for (int i=0; i<RX_VAL_SIZE; i++) {
+						packet[RX_VAL_IDX+i] = que.front();
+						que.pop();
+					}
+
+					state = CRC;
+				}
+				break;
+			case CRC:
+				// size check
+				if (que.size() >= RX_CRC_SIZE) {
+					for (int i=0; i<RX_CRC_SIZE; i++) {
+						packet[RX_CRC_IDX+i] = que.front();
+						que.pop();
+					}
+
+					unsigned short crc16 = CRC16(packet, RX_SIZE-RX_CRC_SIZE);
+					unsigned char crc16hi = *(((char*)&crc16)+0);
+					unsigned char crc16lo = *(((char*)&crc16)+1);
+
+					if (!(crc16hi == packet[RX_SIZE-2] && crc16lo == packet[RX_SIZE-1])) {
+						cout << node_name << " : CRC Not Match !!!" << endl;
+						memset(packet, '\0', RX_SIZE);
+					
+						state = ADDRESS;
+
+						return false;
+					} else {
+						state = OK;
+					}
+				}
+
+				break;
+			case OK:
+				publishTopic(packet);
+
+#if 0
+				printf("%s : ", node_name.c_str());
+				for (int i=0; i<RX_SIZE; i++) {
+					printf("%02x ", packet[i]);
+				}
+				printf("\n");
+#endif
+
+				memset(packet, '\0', RX_SIZE);
+				
+				state = ADDRESS;
+
+				return true;
+
+				break;
+			default:
+				state = ADDRESS;
+
+				break;
+		}
+		
+		return false;
 	}
 
 	unsigned short byteExchange(unsigned short data) {
 		return ((data & 0x00FF) << 8) | ((data & 0xFF00) >> 8);
 	}
 
-	void publishTopic()
+	void publishTopic(unsigned char* packet)
 	{
 		TF40RX tf40rx;
 
-		memcpy(&tf40rx, rx_packet, sizeof(tf40rx));
+		memcpy(&tf40rx, packet, sizeof(tf40rx));
 		unsigned int range = byteExchange(tf40rx.register1) << 16 | byteExchange(tf40rx.register2);
-		printf("range : %d mm\r\n", range);
+		// printf("range : %d mm\r\n", range);
 
 		// cout << "Accel [m/sec^2]: " << fixed << setprecision(3) << setw(8) << tf40rx.AccX << endl;
 	
@@ -231,13 +441,14 @@ public:
 		sensor_range_msg.header.stamp = now;
 		
 		// frame id
-		sensor_range_msg.header.frame_id = "laser_frame";
+		sensor_range_msg.header.frame_id = frame_id_;
 		
 		// radiation_type
 		sensor_range_msg.radiation_type = sensor_msgs::Range::INFRARED;
 
 		// fov(rad)
-		sensor_range_msg.field_of_view = 0.001;
+		// sensor_range_msg.field_of_view = 0.001; // original
+		sensor_range_msg.field_of_view = 0.01;	// visulation
 
 		// min, max range
 		sensor_range_msg.min_range = 0.04;
@@ -248,6 +459,10 @@ public:
 
 		// publish the IMU data
 		sensor_range.publish(sensor_range_msg);
+	}
+
+	int getQueueSize() {
+		return que.size();
 	}
 
 };
@@ -263,11 +478,13 @@ int main(int argc, char* argv[])
 
   ros::param::get("~serial_port", serial_port);
   ros::param::get("~baud_rate", baud_rate);
+  ros::param::get("~node_name", node_name);
 
   TF40ForROS sensor(serial_port, baud_rate);
 
   if(sensor.initialize() == false)
   {
+    ROS_ERROR("%s\n", node_name.c_str());
     ROS_ERROR("Initialize() returns false, please check your devices.\n");
 	ROS_ERROR("Set port parameters using the following Linux command:\n stty -F /dev/ttyUSB0 38400 raw\n");
 	ROS_ERROR("You may need to have ROOT access\n");
@@ -275,18 +492,57 @@ int main(int argc, char* argv[])
   }
   else
   {
+    ROS_INFO("%s\n", node_name.c_str());
     ROS_INFO("TF40 Initialization OK!\n");
   }
 
-  // ros::Rate loop_rate(10);
-  // sensor.requestStreamData();
+  ros::Rate r(100);
+
+#define STEP_TIME 1.0
+  double time_cur = ros::Time::now().toSec();
+  double time_pre = time_cur;
+  double time_diff;
+
+  bool result;
+
+#if 0
+  sensor.changeBaudrate115200();
+#endif
 
   while (ros::ok())
   {
-  	sensor.requestData();
-	sensor.receiveData();
+    time_cur = ros::Time::now().toSec();
+    time_diff = time_cur - time_pre;
+    if ( time_diff > STEP_TIME ) {
+    	#if 0
+  		sensor.requestData();
+  		#else
+  		static bool request = true;
+  		if (request) {
+  			if (result == true) {
+  				request = false;
+  				printf("%s disable request data\n", node_name.c_str());
+  			}
+
+  			sensor.requestStreamData();
+  		}
+  		#endif
+        time_pre = time_cur;
+    }
+
+	sensor.receiveData(); // stack smashing detected(because of BUFSIZ, read(BUFSIZ))
+	while( sensor.getQueueSize() >= RX_SIZE ) {
+		result = sensor.parseData();
+
+		if (result) {
+			break;
+		}
+	}
+	// printf("%s : size(%d) \n", node_name.c_str(), sensor.getQueueSize());
 
 	ros::spinOnce();
+
+	r.sleep();
   }
 
   //ros::spin();
