@@ -427,7 +427,9 @@ public:
 
 		memcpy(&tf40rx, packet, sizeof(tf40rx));
 		unsigned int range = byteExchange(tf40rx.register1) << 16 | byteExchange(tf40rx.register2);
-		// printf("range : %d mm\r\n", range);
+		
+		static int count = 0;
+		printf("range : %d mm, %d cnt\r\n", range, count++);
 
 		// cout << "Accel [m/sec^2]: " << fixed << setprecision(3) << setw(8) << tf40rx.AccX << endl;
 	
