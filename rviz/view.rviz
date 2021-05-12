@@ -74,7 +74,7 @@ Visualization Manager:
       Enabled: true
       Name: Range
       Queue Size: 100
-      Topic: /tf40_rr/tf40_rr
+      Topic: /tf40_rb/tf40_rb
       Unreliable: false
       Value: true
     - Class: rviz/TF
@@ -84,17 +84,17 @@ Visualization Manager:
         All Enabled: true
         TF02_fr:
           Value: true
-        TF02_rr:
+        TF02_br:
           Value: true
         TFmini_rf:
           Value: true
-        TFmini_rr:
+        TFmini_rb:
           Value: true
         base_link:
           Value: true
         tf40_rf:
           Value: true
-        tf40_rr:
+        tf40_rb:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -105,15 +105,15 @@ Visualization Manager:
         base_link:
           TF02_fr:
             {}
-          TF02_rr:
+          TF02_br:
             {}
           TFmini_rf:
             {}
-          TFmini_rr:
+          TFmini_rb:
             {}
           tf40_rf:
             {}
-          tf40_rr:
+          tf40_rb:
             {}
       Update Interval: 0
       Value: true
@@ -134,7 +134,7 @@ Visualization Manager:
       Enabled: true
       Name: Range
       Queue Size: 100
-      Topic: /tfmini_ros_node_tfmini_rr/TFmini_rr
+      Topic: /tfmini_ros_node_tfmini_rb/TFmini_rb
       Unreliable: false
       Value: true
   Enabled: true

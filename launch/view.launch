@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find tf40)/launch/base.launch" />
+  
+  <include file="$(find tf40)/launch/tf.launch" />
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find tf40)/rviz/view.rviz" />
+</launch>

@@ -1,9 +1,0 @@
-<launch>
-  <node pkg="tf40" type="tf40" name="tf40_rr" output="screen">
-    <param name="serial_port" value="/dev/recipe.driver.tf40.rr" />
-    <!-- <param name="baud_rate" value="38400" /> -->
-    <param name="baud_rate" value="115200" />
-    <param name="frame_id" value="tf40_rr" />
-    <param name="node_name" value="tf40_rr" />
-  </node>
-</launch>
