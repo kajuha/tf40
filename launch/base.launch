@@ -1,12 +1,14 @@
 <launch>
-  <node pkg="tf40" type="tf40" name="tf40_rf" output="screen">
+  <arg name="output_type" default="screen" doc="output type"/>
+  
+  <node pkg="tf40" type="tf40" name="tf40_rf" output="$(arg output_type)">
     <param name="serial_port" value="/dev/recipe.driver.tf40.rf" />
     <param name="baud_rate" value="115200" />
     <param name="frame_id" value="tf40_rf" />
     <param name="node_name" value="tf40_rf" />
   </node>
 
-  <node pkg="tf40" type="tf40" name="tf40_rb" output="screen">
+  <node pkg="tf40" type="tf40" name="tf40_rb" output="$(arg output_type)">
     <param name="serial_port" value="/dev/recipe.driver.tf40.rb" />
     <param name="baud_rate" value="115200" />
     <param name="frame_id" value="tf40_rb" />
