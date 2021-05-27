@@ -1,6 +1,6 @@
 <launch>
   <include file="$(find tf40)/launch/base.launch">
-    <arg name="output_type" value="screen"/>
+    <arg name="message_display" value="screen"/>
   </include>
   
   <include file="$(find tf40)/launch/tf.launch" />

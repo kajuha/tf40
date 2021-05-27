@@ -108,7 +108,7 @@ Visualization Manager:
       Enabled: true
       Name: Range
       Queue Size: 100
-      Topic: /tfmini_ros_node_tfmini_rf/TFmini_rf
+      Topic: /tfmini_rf/TFmini_rf
       Unreliable: false
       Value: true
     - Alpha: 0.30000001192092896
@@ -118,7 +118,7 @@ Visualization Manager:
       Enabled: true
       Name: Range
       Queue Size: 100
-      Topic: /tfmini_ros_node_tfmini_rb/TFmini_rb
+      Topic: /tfmini_rb/TFmini_rb
       Unreliable: false
       Value: true
   Enabled: true
