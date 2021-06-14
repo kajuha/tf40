@@ -11,6 +11,44 @@
 
 #include <iostream>
 #include <queue>
+#include <boost/thread.hpp>
+
+ros::Time ts_now;
+ros::Time ts_pre;
+double ts_diff;
+
+void errorCheck(int rate, double timeout_sec, std::string id, ros::Publisher pub_range) {
+  sensor_msgs::Range sensor_range_msg;
+  sensor_range_msg.radiation_type = sensor_msgs::Range::INFRARED;
+  // fov(rad)
+  // sensor_range_msg.field_of_view = 0.001; // original
+  sensor_range_msg.field_of_view = 0.01;	// visulation
+  // min, max range
+  sensor_range_msg.min_range = 0.04;
+  sensor_range_msg.max_range = 40;
+  sensor_range_msg.header.frame_id = id;
+
+  float dist = 0;
+  ros::Rate r(rate);
+
+  while (ros::ok())
+  {
+    ts_now = ros::Time::now();
+    ts_diff = ts_now.toSec()-ts_pre.toSec();
+    // printf("ts_diff: %lf\n", ts_diff);
+    if(timeout_sec < ts_diff)
+    {
+      // printf("timeout ts_diff: %lf\n", ts_diff);
+      ts_pre = ts_now;
+
+      sensor_range_msg.range = -2.0;
+      sensor_range_msg.header.stamp = ros::Time::now();
+      pub_range.publish(sensor_range_msg);
+    }
+
+    r.sleep();
+  }
+}
 
 using namespace std;
 
@@ -60,9 +98,7 @@ unsigned short CRC16(unsigned char data[], unsigned short length);
 class TF40ForROS
 {
 private:
-	ros::NodeHandle nh_;
-
-	ros::Publisher sensor_range;
+	ros::Publisher sensor_range_;
 
 	pthread_mutex_t lock_;
 
@@ -82,22 +118,12 @@ private:
 
 
 public:
-	TF40ForROS(std::string serial_port, int baud_rate)
-		: nh_("~")
+	TF40ForROS(std::string serial_port, int baud_rate, std::string frame_id, ros::Publisher sensor_range)
 	{
-		// dependent on user device
-		nh_.setParam("serial_port", serial_port);
-		nh_.setParam("baud_rate", baud_rate);
-
-  		ros::param::get("~frame_id", frame_id_);
-
 		serial_port_ = serial_port;
-		// kajuha 20210302
 		baud_rate_ = baud_rate;
-		
-		// publisher for streaming
-		// sensor_range = nh_.advertise<sensor_msgs::Range>("sensor_range/data", 1);
-		sensor_range = nh_.advertise<sensor_msgs::Range>(frame_id_, 1000, true);
+		frame_id_ = frame_id;
+		sensor_range_ = sensor_range;
 	}
 
 	~TF40ForROS()
@@ -423,6 +449,8 @@ public:
 
 	void publishTopic(unsigned char* packet)
 	{
+		ts_pre = ts_now;
+
 		TF40RX tf40rx;
 
 		memcpy(&tf40rx, packet, sizeof(tf40rx));
@@ -460,7 +488,7 @@ public:
 		sensor_range_msg.range = range / 1000.0;
 
 		// publish the IMU data
-		sensor_range.publish(sensor_range_msg);
+		sensor_range_.publish(sensor_range_msg);
 	}
 
 	int getQueueSize() {
@@ -474,15 +502,37 @@ public:
 int main(int argc, char* argv[])
 {
   ros::init(argc, argv, "tf40");
+  ros::NodeHandle nh("~");
 
   std::string serial_port;
+  std::string id;
   int baud_rate;
+  double timeout_sec;
+  int main_hz;
 
   ros::param::get("~serial_port", serial_port);
   ros::param::get("~baud_rate", baud_rate);
   ros::param::get("~node_name", node_name);
+  ros::param::get("~timeout_sec", timeout_sec);
+  ros::param::get("~main_hz", main_hz);
+  ros::param::get("~frame_id", id);
 
-  TF40ForROS sensor(serial_port, baud_rate);
+  ros::Publisher sensor_range = nh.advertise<sensor_msgs::Range>(id, 1000, true);
+  
+  sensor_msgs::Range sensor_range_msg;
+  sensor_range_msg.radiation_type = sensor_msgs::Range::INFRARED;
+  // fov(rad)
+  // sensor_range_msg.field_of_view = 0.001; // original
+  sensor_range_msg.field_of_view = 0.01;	// visulation
+  // min, max range
+  sensor_range_msg.min_range = 0.04;
+  sensor_range_msg.max_range = 40;
+  sensor_range_msg.header.frame_id = id;
+  sensor_range_msg.range = -3.0;
+  sensor_range_msg.header.stamp = ros::Time::now();
+  sensor_range.publish(sensor_range_msg);
+
+  TF40ForROS sensor(serial_port, baud_rate, id, sensor_range);
 
   if(sensor.initialize() == false)
   {
@@ -498,9 +548,10 @@ int main(int argc, char* argv[])
     ROS_INFO("TF40 Initialization OK!\n");
   }
 
-  ros::Rate r(100);
+  ros::Rate r(main_hz);
 
-#define STEP_TIME 1.0
+// #define STEP_TIME 1.0
+#define STEP_TIME 0.2
   double time_cur = ros::Time::now().toSec();
   double time_pre = time_cur;
   double time_diff;
@@ -511,12 +562,15 @@ int main(int argc, char* argv[])
   sensor.changeBaudrate115200();
 #endif
 
+  ts_pre = ts_now = ros::Time::now();
+  boost::thread threadErrorCheck(errorCheck, main_hz, timeout_sec, id, sensor_range);
+
   while (ros::ok())
   {
     time_cur = ros::Time::now().toSec();
     time_diff = time_cur - time_pre;
     if ( time_diff > STEP_TIME ) {
-    	#if 0
+    	#if 1
   		sensor.requestData();
   		#else
   		static bool request = true;
@@ -546,6 +600,10 @@ int main(int argc, char* argv[])
 
 	r.sleep();
   }
+
+  sensor_range_msg.range = -4.0;
+  sensor_range_msg.header.stamp = ros::Time::now();
+  sensor_range.publish(sensor_range_msg);
 
   //ros::spin();
 
