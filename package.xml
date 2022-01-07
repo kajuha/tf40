@@ -4,8 +4,8 @@
   <version>0.0.1</version>
   <description>TF40</description>
   <license>BSD</license>
-  <author email="kajuha@gmail.com">Jeong-Hwan Kwak</author>
-  <maintainer email="kajuha@gmail.com">Jeong-Hwan Kwak</maintainer>
+  <author email="kajuha@gmail.com">kajuha</author>
+  <maintainer email="kajuha@gmail.com">kajuha</maintainer>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>std_msgs</build_depend>

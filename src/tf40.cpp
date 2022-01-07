@@ -103,7 +103,6 @@ private:
 	pthread_mutex_t lock_;
 
 	std::string serial_port_;
-	// kajuha 20210302
 	int baud_rate_;
 	queue<unsigned char> que;
 
@@ -144,7 +143,7 @@ public:
 
 		struct termios newtio;
 		memset(&newtio, 0, sizeof(newtio));
-		// kajuha 20210302
+		
 		#if 1
 		switch(baud_rate_)
 		{
@@ -194,8 +193,7 @@ public:
 		newtio.c_iflag = 0;
 		newtio.c_oflag = 0;
 		newtio.c_lflag = 0;
-		newtio.c_cc[VTIME] = 0; 
-		// kajuha 20210302, receive FSM abnormal, require modified code
+		newtio.c_cc[VTIME] = 0;
 		#if 0
 		newtio.c_cc[VMIN] = 1; 
 		#else
@@ -263,7 +261,6 @@ public:
 
 	bool receiveData()
 	{
-		// kajuha 20210302
 		#if 1
 		int rx_size;
 
@@ -325,7 +322,6 @@ public:
 		#endif
 	}
 
-	// kajuha 20210302
 	enum STATE {ADDRESS, FUNCTION, COUNT, VALUE, CRC, OK};
 	bool parseData() {
 		static int state = ADDRESS;
